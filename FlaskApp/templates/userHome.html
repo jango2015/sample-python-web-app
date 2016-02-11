@@ -20,36 +20,28 @@
 		</style>
 
 	<script type="text/javascript" src="http://ajax.aspnetcdn.com/ajax/jquery.templates/beta1/jquery.tmpl.js"></script>
- <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/js/bootstrap.min.js"></script>        <script>
-			/*$(function() {
-				$.ajax({
-					url: '/getWish',
-					type: 'GET',
-					success: function(res) {
-		 
-						// Parse the JSON response
-						var wishObj = JSON.parse(res);
-						 
-						// Append to the template
-						$('#listTemplate').tmpl(wishObj).appendTo('#ulist');
-		 
-		 
-					},
-					error: function(error) {
-						console.log(error);
-					}
-				});
-			});*/
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/js/bootstrap.min.js"></script>
+ 
+	<script src="../static/js/jquery.ui.widget.js"></script>
+
+	<script src="../static/js/jquery.iframe-transport.js"></script>
+	 
+	<script type="text/javascript" src="../static/js/jquery.fileupload.js"></script>
+
+	<script type="text/javascript" src="../static/js/jquery.fileupload-process.js"></script>
+	 
+	<script type="text/javascript" src="../static/js/jquery.fileupload-ui.js"></script>
+
+	<script type="text/javascript" src="../static/js/jquery.fileupload-image.js"></script>
+
+	<script>
+			
 			$(function(){
 				GetWishes();
 				$('#btnUpdate').click(function() {
 					$.ajax({
 						url: '/updateWish',
-						data: {
-							title: $('#editTitle').val(),
-							description: $('#editDescription').val(),
-							id: localStorage.getItem('editId')
-						},
+						data : {title:$('#editTitle').val(),description:$('#editDescription').val(),id:localStorage.getItem('editId'),filePath:$('#imgUpload').attr('src'),isPrivate:$('#chkPrivate').is(':checked')?1:0,isDone:$('#chkDone').is(':checked')?1:0},
 						type: 'POST',
 						success: function(res) {
 							$('#editModal').modal('hide');
@@ -62,18 +54,103 @@
 					})
 				});
 			});
-			function GetWishes() {
+			function GetWishes(_page) {
+			 
+				var _offset = (_page - 1) * 2;
+			   
 				$.ajax({
 					url: '/getWish',
-					type: 'GET',
+					type: 'POST',
+					data: {
+						offset: _offset
+					},
 					success: function(res) {
-						console.log(res);
-
+						//items per page
+						var itemsPerPage = 4;
+			 
 						var wishObj = JSON.parse(res);
-						
+			 
 						$('.list-group-item').remove();
-						$('#listTemplate').tmpl(wishObj).appendTo('#ulist');
-						//$('#ulist').append($('#listTemplate').tmpl(wishObj));
+						$('#listTemplate').tmpl(wishObj[0]).appendTo('#ulist');
+			 
+						var total = wishObj[1]['total'];
+						var pageCount = total / itemsPerPage;
+						var pageRem = total % itemsPerPage;
+						if (pageRem != 0) {
+							pageCount = Math.floor(pageCount) + 1;
+						}
+			 
+			 
+						$('.pagination').empty();
+			 
+						var pageStart = $('#hdnStart').val();
+						var pageEnd = $('#hdnEnd').val();
+			 
+			 
+			 
+			 
+						if (pageStart > 5) {
+							var aPrev = $('<a/>').attr({
+									'href': '#'
+								}, {
+									'aria-label': 'Previous'
+								})
+								.append($('<span/>').attr('aria-hidden', 'true').html('&laquo;'));
+			 
+							$(aPrev).click(function() {
+								$('#hdnStart').val(Number(pageStart) - 5);
+								$('#hdnEnd').val(Number(pageStart) - 5 + 4);
+								GetWishes(Number(pageStart) - 5);
+							});
+			 
+							var prevLink = $('<li/>').append(aPrev);
+							$('.pagination').append(prevLink);
+						}
+			 
+			 
+			 
+						for (var i = Number(pageStart); i <= Number(pageEnd); i++) {
+			 
+							if (i > pageCount) {
+								break;
+							}
+			 
+			 
+							var aPage = $('<a/>').attr('href', '#').text(i);
+			 
+							$(aPage).click(function(i) {
+								return function() {
+									GetWishes(i);
+								}
+							}(i));
+							var page = $('<li/>').append(aPage);
+			 
+							if ((_page) == i) {
+								$(page).attr('class', 'active');
+							}
+			 
+							$('.pagination').append(page);
+			 
+			 
+						}
+						if ((Number(pageStart) + 5) <= pageCount) {
+							var nextLink = $('<li/>').append($('<a/>').attr({
+									'href': '#'
+								}, {
+									'aria-label': 'Next'
+								})
+								.append($('<span/>').attr('aria-hidden', 'true').html('&raquo;').click(function() {
+									$('#hdnStart').val(Number(pageStart) + 5);
+									$('#hdnEnd').val(Number(pageStart) + 5 + 4);
+									GetWishes(Number(pageStart) + 5);
+			 
+								})));
+							$('.pagination').append(nextLink);
+						}
+			 
+			 
+			 
+			 
 					},
 					error: function(error) {
 						console.log(error);
@@ -89,10 +166,25 @@
 					},
 					type: 'POST',
 					success: function(res) {
+
 						var data = JSON.parse(res);
+	 
 						$('#editTitle').val(data[0]['Title']);
+					   
 						$('#editDescription').val(data[0]['Description']);
+					   
+						$('#imgUpload').attr('src', data[0]['FilePath']);
+					   
+						if (data[0]['Private'] == "1") {
+							$('#chkPrivate').attr('checked', 'checked');
+						}
+					   
+						if (data[0]['Done'] == "1") {
+							$('#chkDone').attr('checked', 'checked');
+						}
+					   
 						$('#editModal').modal();
+ 
 
 						console.log(res);
 					},
@@ -126,10 +218,30 @@
 				localStorage.setItem('deleteId', $(elem).attr('data-id'));
 				$('#deleteModal').modal();
 			}
-			
+			$(function() {
+				$('#fileupload').fileupload({
+					url: 'upload',
+					dataType: 'json',
+					add: function(e, data) {
+						data.submit();
+					},
+					success: function(response, status) {
+						 
+						var filePath = 'static/Uploads/' + response.filename;
+						$('#imgUpload').attr('src', filePath);
+						$('#filePath').val(filePath);
+						
+					},
+					error: function(error) {
+						console.log(error);
+					}
+				});
+			})
 		</script>
 	</head>
 	<body>
+		<input type="hidden" id="hdnStart" value="1" />
+		<input type="hidden" id="hdnEnd" value="5"/>
 		<div class="container">
 			<div class="header">
 				<nav>
@@ -160,6 +272,11 @@
 									</li>
 								</script>
 							</ul>
+							<nav>
+								<ul class="pagination">
+									
+								</ul>
+							</nav>
 						</div>
 					</div>
 				</div>
@@ -182,11 +299,40 @@
 								<label for="message-text" class="control-label">Description:</label>
 								<textarea class="form-control" id="editDescription"></textarea>
 							</div>
+							<div class="form-group">
+								<label for="txtPost">Photos</label>
+							 
+								<div class="input-group">
+									<span class="input-group-btn">
+												<span class="btn btn-primary btn-file">
+													Browse&hellip; <input type="file" id="fileupload" name="file" multiple>
+												</span>
+									</span>
+									<div class="pull-right">
+										<img id="imgUpload" style="width: 140px; height: 140px;" class="img-thumbnail">
+										<input type="hidden" name="filePath" id="filePath"></input>
+									</div>
+								</div>
+							 
+							</div>
+ 
+							<div class="form-group">
+								<label>Mark this as private and not visible to others.</label>
+								<br/>
+								<input id="chkPrivate" name="private" type="checkbox"> Mark as Private <span class="glyphicon glyphicon-lock" aria-hidden="true"></span>
+							</div>
+							 
+							<div class="form-group">
+								<label>Have you already accomplished this?</label>
+								<br/>
+								<input id="chkDone" name="done" type="checkbox"> Mark as Done <span class="glyphicon glyphicon-ok" aria-hidden="true"></span>
+							</div>
 						</form>
 					</div>
 					<div class="modal-footer">
 						<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-						<button id="btnUpdate" type="button" class="btn btn-primary">Update</button>
+						<button data : {title:$('#editTitle').val(),description:$('#editDescription').val(),id:localStorage.getItem('editId'),filePath:$('#imgUpload').attr('src'),isPrivate:$('#chkPrivate').is(':checked')?1:0,isDone:$('#chkDone').is(':checked')?1:0}
+ id="btnUpdate" type="button" class="btn btn-primary">Update</button>
 					</div>
 				</div>
 			</div>
