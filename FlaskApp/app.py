@@ -131,7 +131,7 @@ def updateWish():
 			cursor = conn.cursor()
 			cursor.callproc('sp_updateWish',(_title,_description,_wish_id,_user))
 			data = cursor.fetchall()
-			
+
 			if len(data) is 0:
 				conn.commit()
 				return json.dumps({'status':'OK'})
@@ -142,6 +142,31 @@ def updateWish():
 	finally:
 		cursor.close()
 		conn.close()
+
+@app.route('/deleteWish',methods=['POST'])
+def deleteWish():
+    try:
+        if session.get('user'):
+            _id = request.form['id']
+            _user = session.get('user')
+ 
+            conn = mysql.connect()
+            cursor = conn.cursor()
+            cursor.callproc('sp_deleteWish',(_id,_user))
+            result = cursor.fetchall()
+ 
+            if len(result) is 0:
+                conn.commit()
+                return json.dumps({'status':'OK'})
+            else:
+                return json.dumps({'status':'An Error occured'})
+        else:
+            return render_template('error.html',error = 'Unauthorized Access')
+    except Exception as e:
+        return json.dumps({'status':str(e)})
+    finally:
+        cursor.close()
+        conn.close()
 
 @app.route('/validateLogin',methods=['POST'])
 def validateLogin():
